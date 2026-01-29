@@ -40,11 +40,18 @@ function generateFromTemplate(template) {
     // Dynamic Formula Logic
     switch(template.a_formula) {
         case "power_rule":
-            let p = n2 + 1;
-            let c = (n1 / p).toFixed(2);
-            if (c.endsWith(".00")) c = Math.floor(n1 / p);
-            a = `${c}*x^${p}`;
-            break;
+    let p = n2 + 1;
+    let a;
+    
+    // If n1 is divisible by the new power, use a whole number
+    if (n1 % p === 0) {
+        let coeff = n1 / p;
+        a = (coeff === 1) ? `x^${p}` : `${coeff}*x^${p}`;
+    } else {
+        // Otherwise, send it as a fraction string "(n1/p)*x^p"
+        a = `(${n1}/${p})*x^${p}`;
+    }
+    break;
             
         case "ln_rule":
             // For ∫ (n1 / x) dx = n1 * ln(x)
@@ -138,6 +145,7 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`Server live on port ${PORT}`));
+
 
 
 
