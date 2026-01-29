@@ -130,22 +130,25 @@
 
         // --- GAMEPLAY LOGIC ---
 
-        socket.on('new_round', (data) => {
-            // Render the Latex-like problem string
-            document.getElementById('problem').innerText = data.question;
-            currentCorrectAnswer = data.answer; // Store the secret answer (math string)
-            
-            // Reset Input
-            const inputField = document.getElementById('answerField');
-            inputField.value = "";
-            inputField.disabled = false;
-            inputField.focus();
-            
-            // Reset Button
-            document.getElementById('submitBtn').disabled = false;
-            document.getElementById('feedback').innerText = "";
-        });
+      socket.on('new_round', (data) => {
+    // 1. Wrap the question in MathJax delimiters \( and \)
+    // Note the double backslashes needed for JS strings
+    document.getElementById('problem').innerHTML = `\\( ${data.question} \\)`;
+    
+    currentCorrectAnswer = data.answer;
+    
+    // Reset UI
+    document.getElementById('answerField').value = "";
+    document.getElementById('answerField').disabled = false;
+    document.getElementById('answerField').focus();
+    document.getElementById('submitBtn').disabled = false;
+    document.getElementById('feedback').innerText = "";
 
+    // 2. TELL MATHJAX TO RENDER THE NEW TEXT
+    if (window.MathJax) {
+        MathJax.typesetPromise();
+    }
+});
         socket.on('update_scores', (scores) => {
             // Simple logic: show MY score. 
             const myScore = scores[socket.id] || 0;
@@ -226,4 +229,5 @@
     </script>
 </body>
 </html>
+
 
