@@ -1,7 +1,9 @@
 [
-  { "q": "\\int NUM1x^{NUM2} dx", "a_formula": "power_rule" },
-  { "q": "\\int \\sin(NUM1x) dx", "a_formula": "sin_rule" },
-  { "q": "\\int \\cos(NUM1x) dx", "a_formula": "cos_rule" },
-  { "q": "\\int e^{NUM1x} dx", "a_formula": "exp_rule" },
-  { "q": "\\int \\frac{NUM1}{x} dx", "a_formula": "ln_rule" }
+  { "q": "\\int \\frac{NUM1}{NUM2x} dx", "a_formula": "ln_coeff_rule" },
+  { "q": "\\int_{0}^{1} NUM1x^{NUM2} dx", "a_formula": "definite_power" },
+  { "q": "\\int \\frac{1}{x^2 + NUM1^2} dx", "a_formula": "arctan_rule" },
+  { "q": "\\int NUM1 \\, dx", "a_formula": "const_rule" },
+  { "q": "\\int \\sin(NUM1x) \\, dx", "a_formula": "sin_rule" },
+  { "q": "\\int \\cos(NUM1x) \\, dx", "a_formula": "cos_rule" },
+  { "q": "\\int e^{NUM1x} \\, dx", "a_formula": "exp_rule" }
 ]
