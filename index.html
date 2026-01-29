@@ -66,49 +66,64 @@
 
 function checkAnswer() {
     const inputField = document.getElementById('answerField');
-    let userAns = inputField.value.trim();
-    
+    const feedback = document.getElementById('feedback');
+    let userAns = inputField.value.trim().toLowerCase();
+    let correct = currentCorrectAnswer.trim().toLowerCase();
+
     // 1. GATEKEEPER: Stop if empty
-    if (userAns === "") {
-        document.getElementById('feedback').innerText = "Type something first!";
-        document.getElementById('feedback').style.color = "orange";
+    if (!userAns) {
+        feedback.innerText = "Type something first!";
+        feedback.style.color = "orange";
         return;
     }
 
-    // 2. NORMALIZATION: Fix minus signs and lowercase everything
-    userAns = userAns.replace(/[\u2012\u2013\u2014\u2212]/g, '-').toLowerCase();
-    let correct = currentCorrectAnswer.replace(/[\u2012\u2013\u2014\u2212]/g, '-').trim().toLowerCase();
+    // 2. MINUS SIGN & SYMBOL NORMALIZATION
+    // Fixes long dashes (—) and en-dashes (–) to standard hyphens (-)
+    userAns = userAns.replace(/[\u2012\u2013\u2014\u2212]/g, '-');
+    correct = correct.replace(/[\u2012\u2013\u2014\u2212]/g, '-');
 
-    // 3. TEXT MATCH: Fast and precise
-    const cleanUser = userAns.replace(/\s+/g, '');
-    const cleanCorrect = correct.replace(/\s+/g, '');
+    // Convert 'e^' to 'exp' for the math engine
+    userAns = userAns.replace(/e\^/g, 'exp');
 
+    // 3. TEXT MATCH (Fastest check)
+    // Removes spaces, brackets, and stars just for a "fuzzy" text comparison
+    const cleanUser = userAns.replace(/[\s\*\(\)]/g, '');
+    const cleanCorrect = correct.replace(/[\s\*\(\)]/g, '');
+    
     if (cleanUser === cleanCorrect) {
         return solveSuccess();
     }
 
-    // 4. MATH EVALUATION: The "Smart" check for fractions and e
+    // 4. ROBUST MATH MATCH (The Smart Check)
     try {
-        // Define 'e' and 'x' so Math.js knows what they are
-        const scope = { 
-            x: 1.5, 
-            e: Math.E 
-        };
-        
-        const uVal = math.evaluate(userAns, scope);
-        const cVal = math.evaluate(correct, scope);
+        // We test at two points to ensure the curves are identical
+        const points = [1.5, 2.5]; 
+        const isCorrect = points.every(testX => {
+            const scope = { x: testX };
+            const uVal = math.evaluate(userAns, scope);
+            const cVal = math.evaluate(correct, scope);
+            // 0.05 tolerance allows for rounding like 0.33 vs 1/3
+            return Math.abs(uVal - cVal) < 0.05;
+        });
 
-        // Tolerance of 0.02 allows for minor rounding (e.g., 0.33 vs 1/3)
-        if (Math.abs(uVal - cVal) < 0.02) {
+        if (isCorrect) {
             return solveSuccess();
         }
     } catch (e) {
-        console.log("Math check bypassed or failed");
+        console.error("Math match error:", e);
     }
 
-    // 5. FEEDBACK: Only if all above checks fail
-    document.getElementById('feedback').innerText = "Wrong Answer";
-    document.getElementById('feedback').style.color = "var(--error)";
+    // 5. FEEDBACK: If all checks fail
+    feedback.innerText = "Wrong Answer";
+    feedback.style.color = "var(--error)";
+}
+
+function solveSuccess() {
+    const feedback = document.getElementById('feedback');
+    feedback.innerText = "✓ Correct!";
+    feedback.style.color = "var(--success)";
+    document.getElementById('submitBtn').disabled = true;
+    socket.emit('i_solved_it');
 }
 
         function solveSuccess() {
@@ -129,5 +144,6 @@ function checkAnswer() {
     </script>
 </body>
 </html>
+
 
 
