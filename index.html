@@ -66,8 +66,6 @@
 
 <script>
 function checkAnswer() {
-    const uVal = math.evaluate(userAns, scope);
-const cVal = math.evaluate(correct, scope);
     const inputField = document.getElementById('answerField');
     const feedback = document.getElementById('feedback');
     let userAns = inputField.value.trim().toLowerCase();
@@ -100,22 +98,28 @@ const cVal = math.evaluate(correct, scope);
     }
 
     // 4. SMART MATH EVALUATION: Handles fractions vs decimals
-    try {
-        // Test at two points to ensure the functions match across a curve
-        const points = [1.5, 2.5]; 
-        const isMatch = points.every(val => {
-            const scope = { x: val };
-            const u = math.evaluate(userAns, scope);
-            const c = math.evaluate(correct, scope);
-            // 0.02 tolerance allows for minor rounding differences
-            return Math.abs(u - c) < 0.02; 
-        });
+    t// 4. SMART MATH EVALUATION
+try {
+    // We test at two points. For definite integrals (numbers), 
+    // val1 and val2 will be the same. For functions (x), they will differ.
+    const points = [1.5, 2.5]; 
+    const isMatch = points.every(val => {
+        const scope = { x: val };
+        
+        // math.evaluate returns a number for both "0.5" and "0.5*x" (when x is provided)
+        const u = math.evaluate(userAns, scope);
+        const c = math.evaluate(correct, scope);
+        
+        // Use a small tolerance for decimal/fraction comparison
+        return Math.abs(u - c) < 0.02; 
+    });
 
-        if (isMatch) return solveSuccess();
-    } catch (e) {
-        console.log("Math check bypassed or formula incomplete");
-    }
-
+    if (isMatch) return solveSuccess();
+} catch (e) {
+    // If userAns is incomplete (e.g., "5*"), evaluate might throw an error.
+    // We catch it here so the game doesn't break.
+    console.log("Waiting for complete formula...");
+}
     // 5. FAILURE FEEDBACK
     feedback.innerText = "Wrong Answer";
     feedback.style.color = "#ff4e4e";
@@ -170,6 +174,7 @@ function solveSuccess() {
     </script>
 </body>
 </html>
+
 
 
 
