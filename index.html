@@ -1,248 +1,226 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Math Duel | Live</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
-    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Math Duel</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.js"></script>
-
+    <script src="/socket.io/socket.io.js"></script>
     <style>
-        :root { --bg: #0b0e14; --card: #1e1f2b; --accent: #4e7cfe; --text: #e3e3e3; --success: #00f097; --error: #ff4e4e; }
-        body { font-family: sans-serif; background: var(--bg); color: var(--text); display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
-        .container { background: var(--card); padding: 2.5rem; border-radius: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); width: 90%; max-width: 450px; text-align: center; }
-        h1 { color: var(--accent); letter-spacing: 2px; }
-        #math-problem { background: rgba(255,255,255,0.03); padding: 25px; border-radius: 16px; margin: 20px 0; min-height: 60px; font-size: 1.5rem; }
-        input { background: #2a2c3d; border: 1px solid #444; padding: 12px; border-radius: 12px; color: white; width: 80%; margin-bottom: 10px; text-align: center; font-size: 1rem; }
-        button { background: var(--accent); color: white; border: none; padding: 12px 24px; border-radius: 12px; cursor: pointer; font-weight: bold; }
-        button:disabled { background: #444; }
-        .history-item { background: rgba(255,255,255,0.05); margin: 8px 0; padding: 12px; border-radius: 8px; display: flex; justify-content: space-between; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1a1a2e;
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            text-align: center;
+        }
+        .container {
+            background-color: #16213e;
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            width: 350px;
+        }
+        input {
+            padding: 10px;
+            border-radius: 5px;
+            border: none;
+            width: 70%;
+            margin-bottom: 10px;
+        }
+        button {
+            padding: 10px 20px;
+            border-radius: 5px;
+            border: none;
+            cursor: pointer;
+            background-color: #0f3460;
+            color: white;
+            font-weight: bold;
+            transition: 0.3s;
+            margin: 5px;
+        }
+        button:hover { background-color: #e94560; }
+        
+        #game-screen { display: none; }
+        
+        .problem-box {
+            font-size: 2rem;
+            margin: 20px 0;
+            padding: 20px;
+            background: #0f3460;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+        }
+        #feedback { height: 20px; font-size: 0.9rem; margin-top: 10px; }
+        .score-board { display: flex; justify-content: space-between; margin-bottom: 15px; font-size: 0.8rem; color: #aaa; }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <h1>MATH DUEL</h1>
-        
-        <div id="setup">
+        <div id="start-screen">
+            <h1>MATH DUEL</h1>
+            <input type="text" id="roomInput" placeholder="Enter Room Code (e.g. A1B2)">
+            <br>
             <button onclick="createMatch()">Create Match</button>
-            <p style="color: #666;">OR</p>
-            <input type="text" id="codeField" placeholder="Enter Code">
-            <button onclick="socket.emit('join_game', document.getElementById('codeField').value.toUpperCase())">Join Duel</button>
-            <h3 id="status" style="margin-top: 20px; color: var(--accent);"></h3>
+            <button onclick="joinMatch()">Join Match</button>
         </div>
 
-        <div id="game-area" style="display:none;">
-            <p id="round-info" style="font-size: 0.8rem; color: #888;"></p>
-            <div id="math-problem"></div>
-            <input type="text" id="answerField" placeholder="Type answer (e.g. 1/2 * x^2)">
+        <div id="game-screen">
+            <div class="score-board">
+                <span id="room-display">Room: --</span>
+                <span id="score-display">Score: 0</span>
+            </div>
+            
+            <div class="problem-box" id="problem">Waiting...</div>
+            
+            <input type="text" id="answerField" placeholder="Enter integral..." autocomplete="off">
+            <br>
             <button id="submitBtn" onclick="checkAnswer()">Submit</button>
-            <p id="feedback" style="margin-top: 15px; font-weight: bold;"></p>
+            
+            <div id="feedback"></div>
         </div>
     </div>
 
-    <script> src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
+        let myRoom = "";
         let currentCorrectAnswer = "";
 
-        socket.on('game_created', id => {
-            document.getElementById('status').innerText = "Game Code: " + id;
-        });
+        // --- MATCHMAKING LOGIC ---
 
-        socket.on('start_round', data => {
-            document.getElementById('setup').style.display = 'none';
-            document.getElementById('game-area').style.display = 'block';
-            document.getElementById('answerField').value = "";
-            document.getElementById('submitBtn').disabled = false;
-            document.getElementById('feedback').innerText = "";
-
-            currentCorrectAnswer = data.problem.a;
-            const ids = Object.keys(data.scores);
-            const scoreDisp = ids.length > 1 ? `${data.scores[ids[0]]} - ${data.scores[ids[1]]}` : "Waiting...";
-            document.getElementById('round-info').innerText = `ROUND ${data.roundNumber}/5 | SCORE: ${scoreDisp}`;
-            
-            katex.render(data.problem.q, document.getElementById('math-problem'));
-        });
-
-        // This "catches" the roomID generated by the server
-socket.on('game_created', (roomID) => {
-    myRoom = roomID; // Stores the ID for later
-    
-    // 1. Show the code so you can tell your friend
-    // You can use an alert or update a text element
-    alert("Share this code with your friend: " + roomID);
-    
-    // 2. Switch the UI screens
-    document.getElementById('start-screen').style.display = 'none';
-    document.getElementById('game-screen').style.display = 'block';
-    
-    console.log("Room created and joined:", roomID);
-
-    function createMatch() {
-    // Just tell the server to start the process
-    socket.emit('create_game');
-}
-    function joinMatch() {
-    const code = document.getElementById('roomInput').value.trim().toUpperCase();
-    if (code) {
-        myRoom = code;
-        socket.emit('join_game', code);
-        
-        // Switch UI
-        document.getElementById('start-screen').style.display = 'none';
-        document.getElementById('game-screen').style.display = 'block';
-    } else {
-        alert("Enter a code first!");
-    }
-}
-});
-       
-    function createMatch() {
-    const roomInput = document.getElementById('roomInput');
-    const roomName = roomInput.value.trim();
-
-    if (!roomName) {
-        alert("Please enter a room name!");
-        return;
-    }
-
-    myRoom = roomName; // Make sure this global variable is defined at the top of your script
-
-    // Log this to your browser console (F12) so you can see if it's firing
-    console.log("Attempting to join room:", roomName);
-
-    // Tell the server to put us in a room
-    socket.emit('join_room', roomName);
-
-    // Switch the UI
-    document.getElementById('start-screen').style.display = 'none';
-    document.getElementById('game-screen').style.display = 'block';
-}
-        
-function checkAnswer() {
-    const inputField = document.getElementById('answerField');
-    const feedback = document.getElementById('feedback');
-    let userAns = inputField.value.trim().toLowerCase();
-    let correct = currentCorrectAnswer.trim().toLowerCase();
-
-    // 1. GATEKEEPER: Prevent points for empty clicks
-    if (!userAns) {
-        feedback.innerText = "Type something first!";
-        feedback.style.color = "orange";
-        return;
-    }
-
-    // 2. NORMALIZATION: Fix mobile dashes and standardize notation
-    // Converts long dashes to standard hyphens
-    userAns = userAns.replace(/[\u2012\u2013\u2014\u2212]/g, '-');
-    correct = correct.replace(/[\u2012\u2013\u2014\u2212]/g, '-');
-
-    // Bridge the gap between user 'ln' and server 'log'
-    userAns = userAns.replace(/ln/g, 'log');
-    // Bridge the gap between user 'e^' and server 'exp'
-    userAns = userAns.replace(/e\^/g, 'exp');
-
-    // 3. FUZZY TEXT MATCH: Ignore formatting "noise"
-    // Strips spaces, stars, and parentheses for a strict symbol check
-    const cleanUser = userAns.replace(/[\s\*\(\)]/g, '');
-    const cleanCorrect = correct.replace(/[\s\*\(\)]/g, '');
-    
-    if (cleanUser === cleanCorrect) {
-        return solveSuccess();
-    }
-
-    // 4. SMART MATH EVALUATION: Handles fractions vs decimals
-    t// 4. SMART MATH EVALUATION
-try {
-    // We test at two points. For definite integrals (numbers), 
-    // val1 and val2 will be the same. For functions (x), they will differ.
-    const points = [1.5, 2.5]; 
-    const isMatch = points.every(val => {
-        const scope = { x: val };
-        
-        // math.evaluate returns a number for both "0.5" and "0.5*x" (when x is provided)
-        const u = math.evaluate(userAns, scope);
-        const c = math.evaluate(correct, scope);
-        
-        // Use a small tolerance for decimal/fraction comparison
-        return Math.abs(u - c) < 0.02; 
-    });
-
-    if (isMatch) return solveSuccess();
-} catch (e) {
-    // If userAns is incomplete (e.g., "5*"), evaluate might throw an error.
-    // We catch it here so the game doesn't break.
-    console.log("Waiting for complete formula...");
-}
-    // 5. FAILURE FEEDBACK
-    feedback.innerText = "Wrong Answer";
-    feedback.style.color = "#ff4e4e";
-}
-
-function solveSuccess() {
-    const feedback = document.getElementById('feedback');
-    feedback.innerText = "✓ Correct!";
-    feedback.style.color = "#00f097";
-    document.getElementById('submitBtn').disabled = true;
-    socket.emit('i_solved_it');
-}
-
-    function solveSuccess() {
-        const feedback = document.getElementById('feedback');
-        feedback.innerText = "✓ Correct!";
-        feedback.style.color = "#00f097";
-        document.getElementById('submitBtn').disabled = true;
-        socket.emit('i_solved_it');
-    }
-
-function solveSuccess() {
-    const feedback = document.getElementById('feedback');
-    feedback.innerText = "✓ Correct!";
-    feedback.style.color = "var(--success)";
-    document.getElementById('submitBtn').disabled = true;
-    socket.emit('i_solved_it');
-}
-function solveSuccess() {
-    const feedback = document.getElementById('feedback');
-    feedback.innerText = "✓ Correct!";
-    feedback.style.color = "var(--success)";
-    document.getElementById('submitBtn').disabled = true;
-    socket.emit('i_solved_it');
-}
-
-        function solveSuccess() {
-            document.getElementById('feedback').innerText = "✓ Correct!";
-            document.getElementById('feedback').style.color = "var(--success)";
-            document.getElementById('submitBtn').disabled = true;
-            socket.emit('i_solved_it');
+        function createMatch() {
+            // Tell server to make a room
+            socket.emit('create_game');
         }
 
-        socket.on('final_results', data => {
-            let history = "<h3>Results</h3>";
-            data.history.forEach((winner, i) => {
-                const result = winner === socket.id ? "WIN" : "LOSS";
-                history += `<div class="history-item"><span>Round ${i+1}</span><span>${result}</span></div>`;
-            });
-            document.querySelector('.container').innerHTML = `<h1>GAME OVER</h1>${history}<button onclick="location.reload()">Play Again</button>`;
+        // LISTEN: Server sends back the new Room ID
+        socket.on('game_created', (roomID) => {
+            myRoom = roomID;
+            
+            // Show the code to the user
+            alert("Match Created! Your Room Code is: " + roomID + "\nShare this with your friend!");
+            
+            // Switch UI
+            enterGameUI(roomID);
+        });
+
+        function joinMatch() {
+            const code = document.getElementById('roomInput').value.trim().toUpperCase();
+            if (code) {
+                myRoom = code;
+                socket.emit('join_game', code);
+                enterGameUI(code);
+            } else {
+                alert("Please enter a room code first.");
+            }
+        }
+
+        function enterGameUI(roomID) {
+            document.getElementById('start-screen').style.display = 'none';
+            document.getElementById('game-screen').style.display = 'block';
+            document.getElementById('room-display').innerText = "Room: " + roomID;
+        }
+
+        // --- GAMEPLAY LOGIC ---
+
+        socket.on('new_round', (data) => {
+            // Render the Latex-like problem string
+            document.getElementById('problem').innerText = data.question;
+            currentCorrectAnswer = data.answer; // Store the secret answer (math string)
+            
+            // Reset Input
+            const inputField = document.getElementById('answerField');
+            inputField.value = "";
+            inputField.disabled = false;
+            inputField.focus();
+            
+            // Reset Button
+            document.getElementById('submitBtn').disabled = false;
+            document.getElementById('feedback').innerText = "";
+        });
+
+        socket.on('update_scores', (scores) => {
+            // Simple logic: show MY score. 
+            const myScore = scores[socket.id] || 0;
+            document.getElementById('score-display').innerText = "Score: " + myScore;
+        });
+
+        // --- THE MATH CHECKER ---
+
+        function checkAnswer() {
+            const inputField = document.getElementById('answerField');
+            const feedback = document.getElementById('feedback');
+            let userAns = inputField.value.trim().toLowerCase();
+            let correct = currentCorrectAnswer.trim().toLowerCase();
+
+            if (!userAns) return;
+
+            // 1. NORMALIZE SYMBOLS
+            userAns = userAns.replace(/[\u2012\u2013\u2014\u2212]/g, '-'); // Fix dashes
+            correct = correct.replace(/[\u2012\u2013\u2014\u2212]/g, '-');
+            
+            // Bridge formats
+            userAns = userAns.replace(/e\^/g, 'exp').replace(/ln/g, 'log');
+
+            // 2. FUZZY TEXT MATCH (Strips spaces, stars, brackets)
+            // Allows (1/3)x^3 to match 1/3x^3
+            const cleanUser = userAns.replace(/[\s\*\(\)]/g, '');
+            const cleanCorrect = correct.replace(/[\s\*\(\)]/g, '');
+
+            if (cleanUser === cleanCorrect) {
+                return solveSuccess();
+            }
+
+            // 3. ROBUST MATH EVALUATION
+            try {
+                // Check at two points to prevent false positives
+                // Works for both Functions (integrals) and Numbers (definite integrals)
+                const points = [1.5, 2.5]; 
+                const isMatch = points.every(val => {
+                    const scope = { x: val };
+                    const uVal = math.evaluate(userAns, scope);
+                    const cVal = math.evaluate(correct, scope);
+                    // 0.02 tolerance allows for 1/3 vs 0.333 differences
+                    return Math.abs(uVal - cVal) < 0.02; 
+                });
+
+                if (isMatch) return solveSuccess();
+
+            } catch (e) {
+                console.log("Math parsing error (incomplete formula?)");
+            }
+
+            // Failure
+            feedback.innerText = "Wrong Answer";
+            feedback.style.color = "#ff4e4e";
+            
+            // Shake effect
+            inputField.style.border = "2px solid red";
+            setTimeout(() => inputField.style.border = "none", 500);
+        }
+
+        function solveSuccess() {
+            const feedback = document.getElementById('feedback');
+            feedback.innerText = "✓ Correct!";
+            feedback.style.color = "#00f097";
+            document.getElementById('submitBtn').disabled = true;
+            document.getElementById('answerField').disabled = true;
+            
+            // Tell server we won this round
+            socket.emit('i_solved_it', myRoom);
+        }
+
+        // Allow pressing "Enter" to submit
+        document.getElementById("answerField").addEventListener("keypress", function(event) {
+            if (event.key === "Enter") {
+                checkAnswer();
+            }
         });
     </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
