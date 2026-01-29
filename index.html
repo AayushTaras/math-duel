@@ -40,7 +40,7 @@
         </div>
     </div>
 
-    <script src="/socket.io/socket.io.js"></script>
+    <script> src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
         let currentCorrectAnswer = "";
@@ -66,6 +66,8 @@
 
 <script>
 function checkAnswer() {
+    const uVal = math.evaluate(userAns, scope);
+const cVal = math.evaluate(correct, scope);
     const inputField = document.getElementById('answerField');
     const feedback = document.getElementById('feedback');
     let userAns = inputField.value.trim().toLowerCase();
@@ -168,6 +170,7 @@ function solveSuccess() {
     </script>
 </body>
 </html>
+
 
 
 
