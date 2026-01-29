@@ -64,26 +64,46 @@
             katex.render(data.problem.q, document.getElementById('math-problem'));
         });
 
-        function checkAnswer() {
-            const userAns = document.getElementById('answerField').value.trim();
-            const correct = currentCorrectAnswer.trim();
+    function checkAnswer() {
+    const inputField = document.getElementById('answerField');
+    let userAns = inputField.value.trim();
+    
+    // Normalize the minus sign (converts long dashes to standard minus)
+    userAns = userAns.replace(/[\u2012\u2013\u2014\u2212]/g, '-');
+    let correct = currentCorrectAnswer.replace(/[\u2012\u2013\u2014\u2212]/g, '-').trim();
 
-            // 1. Text Match
-            if (userAns === correct || userAns.replace(/\s/g,'') === correct.replace(/\s/g,'')) {
-                return solveSuccess();
-            }
+    // 1. PREVENT EMPTY SUBMISSION
+    if (userAns === "") {
+        document.getElementById('feedback').innerText = "Type something first!";
+        document.getElementById('feedback').style.color = "orange";
+        return;
+    }
 
-            // 2. Math Match
-            try {
-                const val = { x: 2.5 };
-                const uRes = math.evaluate(userAns, val);
-                const cRes = math.evaluate(correct, val);
-                if (Math.abs(uRes - cRes) < 0.05) return solveSuccess();
-            } catch(e) {}
+    // 2. TEXT MATCH (Remove all spaces for comparison)
+    const cleanUser = userAns.replace(/\s+/g, '');
+    const cleanCorrect = correct.replace(/\s+/g, '');
 
-            document.getElementById('feedback').innerText = "Wrong Answer";
-            document.getElementById('feedback').style.color = "var(--error)";
+    if (cleanUser === cleanCorrect) {
+        return solveSuccess();
+    }
+
+    // 3. MATH EVALUATION (Handles -0.5 vs -1/2)
+    try {
+        const testPoint = { x: 2.5 };
+        const userValue = math.evaluate(userAns, testPoint);
+        const correctValue = math.evaluate(correct, testPoint);
+
+        // Check if values are essentially equal, including negatives
+        if (Math.abs(userValue - correctValue) < 0.05) {
+            return solveSuccess();
         }
+    } catch (e) {
+        console.error("Evaluation error:", e);
+    }
+
+    document.getElementById('feedback').innerText = "Wrong Answer";
+    document.getElementById('feedback').style.color = "var(--error)";
+}
 
         function solveSuccess() {
             document.getElementById('feedback').innerText = "✓ Correct!";
@@ -103,3 +123,4 @@
     </script>
 </body>
 </html>
+
