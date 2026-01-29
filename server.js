@@ -31,26 +31,48 @@ function generateFromTemplate(template) {
     let n2 = Math.floor(Math.random() * 4) + 2; 
     
     q = q.replace(/NUM1/g, n1).replace(/NUM2/g, n2);
-    
     let a = ""; 
+
     if (template.a) {
         a = template.a.replace(/NUM1/g, n1).replace(/NUM2/g, n2); 
     }
 
-    if(template.a_formula === "power_rule") {
-        let power = n2 + 1;
-        let coeff = (n1 / power).toFixed(2);
-        if (coeff.endsWith(".00")) coeff = Math.floor(n1 / power);
-        a = `${coeff}*x^${power}`;
-    } else if (template.a_formula === "sin_rule") {
-        let coeff = (1 / n1).toFixed(2);
-        // Ensure standard minus sign here
-        a = `-${coeff}*cos(${n1}*x)`;
+    // Dynamic Formula Logic
+    switch(template.a_formula) {
+        case "power_rule":
+            let p = n2 + 1;
+            let c = (n1 / p).toFixed(2);
+            if (c.endsWith(".00")) c = Math.floor(n1 / p);
+            a = `${c}*x^${p}`;
+            break;
+            
+        case "ln_rule":
+            // For ∫ (n1 / x) dx = n1 * ln(x)
+            // We use log(x) for Math.js compatibility
+            a = `${n1}*log(x)`;
+            break;
+
+        case "exp_rule":
+            // For ∫ e^(n1*x) dx = (1/n1) * e^(n1*x)
+            let expCoeff = (1 / n1).toFixed(2);
+            a = `${expCoeff}*exp(${n1}*x)`;
+            break;
+
+        case "sin_rule":
+            let sCoeff = (1 / n1).toFixed(2);
+            a = `-${sCoeff}*cos(${n1}*x)`;
+            break;
+            
+         case "cos_rule":
+            // NEW: ∫ cos(n1*x) dx = (1/n1) * sin(n1*x)
+            let cCoeff = (1 / n1).toFixed(2);
+            if (cCoeff.endsWith(".00")) cCoeff = "1";
+            a = `${cCoeff}*sin(${n1}*x)`;
+            break;
     }
 
-    // Clean up any weird dashes to standard minus signs
+    // Final clean-up: standardized minus signs
     a = a.replace(/[\u2012\u2013\u2014\u2212]/g, '-');
-
     return { q: q, a: a };
 }
 
@@ -106,4 +128,5 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`Server live on port ${PORT}`));
+
 
