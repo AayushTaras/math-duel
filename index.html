@@ -1,96 +1,21 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Math Duel | Pro</title>
+    <title>Math Duel | Live</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.js"></script>
 
     <style>
-        :root {
-            --bg: #0b0e14;
-            --card: #1e1f2b;
-            --accent: #4e7cfe;
-            --text: #e3e3e3;
-            --success: #00f097;
-            --error: #ff4e4e;
-        }
-
-        body {
-            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            background-color: var(--bg);
-            color: var(--text);
-            margin: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-        }
-
-        .container {
-            background: var(--card);
-            padding: 2rem;
-            border-radius: 24px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            width: 90%;
-            max-width: 500px;
-            text-align: center;
-            border: 1px solid rgba(255,255,255,0.05);
-        }
-
-        h1 { font-weight: 300; letter-spacing: 2px; color: var(--accent); }
-
-        button {
-            background: var(--accent);
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 12px;
-            font-size: 1rem;
-            cursor: pointer;
-            transition: transform 0.2s, background 0.2s;
-            margin: 10px;
-        }
-
-        button:hover { transform: translateY(-2px); filter: brightness(1.2); }
-        button:disabled { background: #444; cursor: not-allowed; }
-
-        input {
-            background: #2a2c3d;
-            border: 1px solid #444;
-            padding: 12px;
-            border-radius: 12px;
-            color: white;
-            font-size: 1rem;
-            width: 80%;
-            outline: none;
-            text-align: center;
-        }
-
-        input:focus { border-color: var(--accent); }
-
-        #math-problem {
-            background: rgba(255,255,255,0.03);
-            padding: 20px;
-            border-radius: 16px;
-            margin: 20px 0;
-            min-height: 80px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .history-item {
-            background: rgba(255,255,255,0.05);
-            margin: 5px 0;
-            padding: 10px;
-            border-radius: 8px;
-            display: flex;
-            justify-content: space-between;
-        }
-
-        #feedback { min-height: 24px; margin-top: 10px; }
+        :root { --bg: #0b0e14; --card: #1e1f2b; --accent: #4e7cfe; --text: #e3e3e3; --success: #00f097; --error: #ff4e4e; }
+        body { font-family: sans-serif; background: var(--bg); color: var(--text); display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        .container { background: var(--card); padding: 2.5rem; border-radius: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); width: 90%; max-width: 450px; text-align: center; }
+        h1 { color: var(--accent); letter-spacing: 2px; }
+        #math-problem { background: rgba(255,255,255,0.03); padding: 25px; border-radius: 16px; margin: 20px 0; min-height: 60px; font-size: 1.5rem; }
+        input { background: #2a2c3d; border: 1px solid #444; padding: 12px; border-radius: 12px; color: white; width: 80%; margin-bottom: 10px; text-align: center; font-size: 1rem; }
+        button { background: var(--accent); color: white; border: none; padding: 12px 24px; border-radius: 12px; cursor: pointer; font-weight: bold; }
+        button:disabled { background: #444; }
+        .history-item { background: rgba(255,255,255,0.05); margin: 8px 0; padding: 12px; border-radius: 8px; display: flex; justify-content: space-between; }
     </style>
 </head>
 <body>
@@ -99,22 +24,19 @@
         <h1>MATH DUEL</h1>
         
         <div id="setup">
-            <button onclick="createGame()">Create Match</button>
-            <div style="margin: 15px 0; color: #777;">OR</div>
-            <input type="text" id="codeField" placeholder="Enter Game Code">
-            <button onclick="joinGame()">Join Duel</button>
+            <button onclick="socket.emit('create_game')">Create Match</button>
+            <p style="color: #666;">OR</p>
+            <input type="text" id="codeField" placeholder="Enter Code">
+            <button onclick="socket.emit('join_game', document.getElementById('codeField').value.toUpperCase())">Join Duel</button>
+            <h3 id="status" style="margin-top: 20px; color: var(--accent);"></h3>
         </div>
 
-        <h3 id="status" style="color: var(--accent);"></h3>
-
         <div id="game-area" style="display:none;">
-            <p id="round-info" style="color: #999; text-transform: uppercase; font-size: 0.8rem;"></p>
+            <p id="round-info" style="font-size: 0.8rem; color: #888;"></p>
             <div id="math-problem"></div>
-            
-            <input type="text" id="answerField" placeholder="Type answer (e.g. -(1/2) * x^2)">
-            <button id="submitBtn">Submit</button>
-            
-            <p id="feedback"></p>
+            <input type="text" id="answerField" placeholder="Type answer (e.g. 1/2 * x^2)">
+            <button id="submitBtn" onclick="checkAnswer()">Submit</button>
+            <p id="feedback" style="margin-top: 15px; font-weight: bold;"></p>
         </div>
     </div>
 
@@ -123,76 +45,60 @@
         const socket = io();
         let currentCorrectAnswer = "";
 
-        function createGame() { socket.emit('create_game'); }
-        function joinGame() { socket.emit('join_game', document.getElementById('codeField').value.toUpperCase()); }
-
-        socket.on('game_created', (id) => {
-            document.getElementById('status').innerHTML = `Code: <span style="color:white; letter-spacing:3px;">${id}</span>`;
+        socket.on('game_created', id => {
+            document.getElementById('status').innerText = "Game Code: " + id;
         });
 
-        socket.on('start_round', (data) => {
+        socket.on('start_round', data => {
             document.getElementById('setup').style.display = 'none';
-            document.getElementById('status').style.display = 'none';
             document.getElementById('game-area').style.display = 'block';
-            document.getElementById('feedback').innerText = "";
             document.getElementById('answerField').value = "";
             document.getElementById('submitBtn').disabled = false;
+            document.getElementById('feedback').innerText = "";
 
             currentCorrectAnswer = data.problem.a;
+            const ids = Object.keys(data.scores);
+            const scoreDisp = ids.length > 1 ? `${data.scores[ids[0]]} - ${data.scores[ids[1]]}` : "Waiting...";
+            document.getElementById('round-info').innerText = `ROUND ${data.roundNumber}/5 | SCORE: ${scoreDisp}`;
             
-            const playerIds = Object.keys(data.scores);
-            const scoreText = playerIds.length > 1 ? 
-                `${data.scores[playerIds[0]]} - ${data.scores[playerIds[1]]}` : "Waiting...";
-            
-            document.getElementById('round-info').innerText = `Round ${data.roundNumber}/5 | Score: ${scoreText}`;
             katex.render(data.problem.q, document.getElementById('math-problem'));
         });
 
-        document.getElementById('submitBtn').onclick = function() {
-            const userAns = document.getElementById('answerField').value;
-            try {
-                const testValue = { x: 2.5 };
-                const userResult = math.evaluate(userAns, testValue);
-                const correctResult = math.evaluate(currentCorrectAnswer, testValue);
+        function checkAnswer() {
+            const userAns = document.getElementById('answerField').value.trim();
+            const correct = currentCorrectAnswer.trim();
 
-                if (Math.abs(userResult - correctResult) < 0.01) {
-                    document.getElementById('feedback').innerText = "✓ Accepted";
-                    document.getElementById('feedback').style.color = "var(--success)";
-                    document.getElementById('submitBtn').disabled = true;
-                    socket.emit('i_solved_it');
-                } else {
-                    document.getElementById('feedback').innerText = "Try again";
-                    document.getElementById('feedback').style.color = "var(--error)";
-                }
-            } catch (err) {
-                document.getElementById('feedback').innerText = "Invalid Format";
-                document.getElementById('feedback').style.color = "orange";
+            // 1. Text Match
+            if (userAns === correct || userAns.replace(/\s/g,'') === correct.replace(/\s/g,'')) {
+                return solveSuccess();
             }
-        };
 
-        socket.on('final_results', (data) => {
-            const myId = socket.id;
-            const playerIds = Object.keys(data.scores);
-            const opponentId = playerIds.find(id => id !== myId);
-            const myScore = data.scores[myId] || 0;
-            const oppScore = data.scores[opponentId] || 0;
+            // 2. Math Match
+            try {
+                const val = { x: 2.5 };
+                const uRes = math.evaluate(userAns, val);
+                const cRes = math.evaluate(correct, val);
+                if (Math.abs(uRes - cRes) < 0.05) return solveSuccess();
+            } catch(e) {}
 
-            let historyHtml = "<div style='margin-top:20px;'>";
-            data.history.forEach((winnerId, index) => {
-                const status = (winnerId === myId) ? "WIN" : "LOSS";
-                const color = (winnerId === myId) ? "var(--success)" : "var(--error)";
-                historyHtml += `<div class="history-item"><span>Round ${index+1}</span><span style="color:${color}">${status}</span></div>`;
+            document.getElementById('feedback').innerText = "Wrong Answer";
+            document.getElementById('feedback').style.color = "var(--error)";
+        }
+
+        function solveSuccess() {
+            document.getElementById('feedback').innerText = "✓ Correct!";
+            document.getElementById('feedback').style.color = "var(--success)";
+            document.getElementById('submitBtn').disabled = true;
+            socket.emit('i_solved_it');
+        }
+
+        socket.on('final_results', data => {
+            let history = "<h3>Results</h3>";
+            data.history.forEach((winner, i) => {
+                const result = winner === socket.id ? "WIN" : "LOSS";
+                history += `<div class="history-item"><span>Round ${i+1}</span><span>${result}</span></div>`;
             });
-            historyHtml += "</div>";
-
-            document.querySelector('.container').innerHTML = `
-                <h1 style="color:${myScore > oppScore ? 'var(--success)' : 'var(--error)'}">
-                    ${myScore > oppScore ? "VICTORY" : "DEFEAT"}
-                </h1>
-                <h2 style="font-weight:300;">Final Score: ${myScore} - ${oppScore}</h2>
-                ${historyHtml}
-                <button onclick="location.reload()" style="margin-top:20px; width:100%;">Play Again</button>
-            `;
+            document.querySelector('.container').innerHTML = `<h1>GAME OVER</h1>${history}<button onclick="location.reload()">Play Again</button>`;
         });
     </script>
 </body>
