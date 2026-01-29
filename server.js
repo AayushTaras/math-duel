@@ -8,22 +8,20 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-// --- FILE SERVING LOGIC ---
-// This tells Express to serve your index.html and other files from the root folder
+// Serve static files and handle the home route
 app.use(express.static(path.join(__dirname, '/')));
-
-// This is the "Home Route" - it forces the browser to load index.html immediately
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// --- PROBLEM GENERATION LOGIC ---
+// Load Math Templates
 let templates = [];
 try {
-    templates = JSON.parse(fs.readFileSync('problems.json', 'utf8'));
+    const data = fs.readFileSync('problems.json', 'utf8');
+    templates = JSON.parse(data);
 } catch (err) {
-    console.error("Error reading problems.json! Make sure the file exists in the root folder.");
-    templates = [{ "q": "\\int x^2 dx", "a": "1/3 * x^3" }]; // Fallback
+    console.error("problems.json not found! Using default.");
+    templates = [{ "q": "\\int NUM1x^{NUM2} dx", "a_formula": "power_rule" }];
 }
 
 const roomData = {}; 
@@ -34,22 +32,19 @@ function generateFromTemplate(template) {
     let n2 = Math.floor(Math.random() * 4) + 2; 
     
     q = q.replace("NUM1", n1).replace("NUM2", n2);
+    let a = template.a || ""; 
 
-    // Using your "old code" style since you mentioned it works better for you
-    // We just ensure standard math symbols like * and ^ are used
-    let a = template.a ? template.a : ""; 
-
-    // If you use a_formula in your JSON, the logic stays here:
+    // Logic for dynamic formulas
     if(template.a_formula === "power_rule") {
         let power = n2 + 1;
         let coeff = (n1 / power).toFixed(2);
+        if (coeff.endsWith(".00")) coeff = Math.floor(n1 / power);
         a = `${coeff} * x^${power}`;
     }
 
     return { q: q, a: a };
 }
 
-// --- MULTIPLAYER LOGIC ---
 io.on('connection', (socket) => {
     let myRoom = "";
 
@@ -74,7 +69,6 @@ io.on('connection', (socket) => {
 
     socket.on('i_solved_it', () => {
         if (!roomData[myRoom]) return;
-
         roomData[myRoom].scores[socket.id] += 1;
         roomData[myRoom].history.push(socket.id);
         roomData[myRoom].round += 1;
@@ -92,18 +86,14 @@ io.on('connection', (socket) => {
 
     function sendNewRound(roomID) {
         const randomTemplate = templates[Math.floor(Math.random() * templates.length)];
-        const finalProblem = generateFromTemplate(randomTemplate);
+        const problem = generateFromTemplate(randomTemplate);
         io.to(roomID).emit('start_round', {
-            problem: finalProblem,
+            problem: problem,
             scores: roomData[roomID].scores,
             roundNumber: roomData[roomID].round + 1
         });
     }
 });
 
-// --- START THE SERVER ---
-// Using process.env.PORT for Render and 3000 for local testing
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-    console.log(`Server live on port ${PORT}`);
-});
+server.listen(PORT, () => console.log(`Server live on port ${PORT}`));
