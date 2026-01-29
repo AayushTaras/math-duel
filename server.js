@@ -1,172 +1,158 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
-const fs = require('fs');
-const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-// Serve static files and handle the home route
-app.use(express.static(path.join(__dirname, '/')));
+// Serve the index.html file
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
+    res.sendFile(__dirname + '/index.html');
 });
 
-// Load Math Templates
-let templates = [];
-try {
-    const data = fs.readFileSync('problems.json', 'utf8');
-    templates = JSON.parse(data);
-} catch (err) {
-    console.error("problems.json not found! Using default.");
-    templates = [{ "q": "\\int NUM1x^{NUM2} dx", "a_formula": "power_rule" }];
+// Game State Storage
+const roomData = {}; 
+
+// PROBLEM TEMPLATES
+const problemTemplates = [
+    { q: "\\int x^{NUM1} dx", type: "power_rule" },
+    { q: "\\int NUM1 x^{NUM2} dx", type: "power_rule_coeff" },
+    { q: "\\int \\frac{NUM1}{x} dx", type: "ln_rule" },
+    { q: "\\int e^{NUM1x} dx", type: "exp_rule" },
+    { q: "\\int \\sin(NUM1x) dx", type: "sin_rule" },
+    { q: "\\int \\cos(NUM1x) dx", type: "cos_rule" },
+    { q: "\\int_{0}^{1} NUM1 x dx", type: "definite_simple" } 
+];
+
+function generateProblem() {
+    const template = problemTemplates[Math.floor(Math.random() * problemTemplates.length)];
+    const n1 = Math.floor(Math.random() * 5) + 2; // Random 2 to 6
+    const n2 = Math.floor(Math.random() * 4) + 2; // Random 2 to 5
+
+    let question = template.q.replace('NUM1', n1).replace('NUM2', n2);
+    let answerFormula = "";
+
+    // ANSWER GENERATION LOGIC (Fractional Format)
+    switch (template.type) {
+        case "power_rule":
+            // ∫ x^n = (1/(n+1)) * x^(n+1)
+            answerFormula = `(1/${n1+1})*x^${n1+1}`;
+            break;
+
+        case "power_rule_coeff":
+            // ∫ n1*x^n2 = (n1/(n2+1)) * x^(n2+1)
+            let p = n2 + 1;
+            if (n1 % p === 0) {
+                answerFormula = `${n1/p}*x^${p}`;
+            } else {
+                answerFormula = `(${n1}/${p})*x^${p}`;
+            }
+            break;
+
+        case "ln_rule":
+            // ∫ n1/x = n1 * ln(x) -> sent as log(x)
+            answerFormula = `${n1}*log(x)`;
+            break;
+
+        case "exp_rule":
+            // ∫ e^(n1x) = (1/n1) * e^(n1x)
+            answerFormula = `(1/${n1})*exp(${n1}*x)`;
+            break;
+
+        case "sin_rule":
+            // ∫ sin(n1x) = -(1/n1) * cos(n1x)
+            answerFormula = `-(1/${n1})*cos(${n1}*x)`;
+            break;
+
+        case "cos_rule":
+             // ∫ cos(n1x) = (1/n1) * sin(n1x)
+             answerFormula = `(1/${n1})*sin(${n1}*x)`;
+             break;
+             
+        case "definite_simple":
+            // ∫ from 0 to 1 of n1*x = n1 * [x^2/2] from 0 to 1 = n1/2
+            answerFormula = `${n1/2}`;
+            break;
+    }
+
+    return { question, answer: answerFormula };
 }
 
-const roomData = {}; 
-function generateFromTemplate(template) {
-    let q = template.q;
-    let n1 = Math.floor(Math.random() * 8) + 2; 
-    let n2 = Math.floor(Math.random() * 4) + 2; 
+function sendNewRound(roomID) {
+    if (!roomData[roomID]) return;
     
-    q = q.replace(/NUM1/g, n1).replace(/NUM2/g, n2);
-    let a = ""; 
-
-    if (template.a) {
-        a = template.a.replace(/NUM1/g, n1).replace(/NUM2/g, n2); 
-    }
-
-    // Dynamic Formula Logic
-    switch(template.a_formula) {
-        case "power_rule":
-    let p = n2 + 1;
-    let a;
+    const problem = generateProblem();
+    roomData[roomID].currentAnswer = problem.answer;
     
-    // If n1 is divisible by the new power, use a whole number
-    if (n1 % p === 0) {
-        let coeff = n1 / p;
-        a = (coeff === 1) ? `x^${p}` : `${coeff}*x^${p}`;
-    } else {
-        // Otherwise, send it as a fraction string "(n1/p)*x^p"
-        a = `(${n1}/${p})*x^${p}`;
-    }
-    break;
-            
-    case "ln_rule":
-    // For ∫ (n1 / x) dx = n1 * ln(x)
-    // We keep n1 as a whole number. 
-    // We use 'log' for the internal math check, but the player can type 'ln'
-    a = `${n1}*log(x)`;
-    break;
-            
-    case "exp_rule":
-    // ∫ e^(n1*x) dx = (1/n1) * e^(n1*x)
-    a = `(1/${n1})*exp(${n1}*x)`;
-    break;
-
-case "sin_rule":
-    // ∫ sin(n1*x) dx = -(1/n1) * cos(n1*x)
-    a = `-(1/${n1})*cos(${n1}*x)`;
-    break;
-
-case "cos_rule":
-    // ∫ cos(n1*x) dx = (1/n1) * sin(n1*x)
-    a = `(1/${n1})*sin(${n1}*x)`;
-    break;
-
-            case "ln_coeff_rule":
-    // ∫ (n1 / (n2*x)) dx = (n1/n2) * ln(x)
-    a = `(${n1}/${n2})*log(x)`;
-    break;
-
-case "definite_power":
-    // ∫ from 0 to 1 of (n1 * x^n2) dx = n1 / (n2 + 1)
-    let newP = n2 + 1;
-    a = `${(n1 / newP).toFixed(2)}`; 
-    break;
-
-case "arctan_rule":
-    // ∫ 1 / (x^2 + n1^2) dx = (1/n1) * arctan(x/n1)
-    // Note: n1 is passed as the squared value usually, or just a constant
-    a = `(1/${n1})*atan(x/${n1})`;
-    break;
-
-case "const_rule":
-    // ∫ n1 dx = n1*x
-    a = `${n1}*x`;
-    break;
-
-    }
-
-    // Final clean-up: standardized minus signs
-    a = a.replace(/[\u2012\u2013\u2014\u2212]/g, '-');
-    return { q: q, a: a };
+    // Send to everyone in the room
+    io.to(roomID).emit('new_round', {
+        question: problem.question,
+        answer: problem.answer
+    });
 }
 
 io.on('connection', (socket) => {
-    let myRoom = "";
+    console.log('User connected:', socket.id);
 
+    // 1. CREATE GAME
     socket.on('create_game', () => {
+        // Generate random 5-char ID
         const roomID = Math.random().toString(36).substring(2, 7).toUpperCase();
+        
         socket.join(roomID);
-        myRoom = roomID;
-        roomData[roomID] = { scores: {}, round: 0, history: [] };
+        
+        // Initialize Room
+        roomData[roomID] = { 
+            scores: {}, 
+            round: 0 
+        };
         roomData[roomID].scores[socket.id] = 0;
+
+        // Tell client the ID
         socket.emit('game_created', roomID);
+
+        // START GAME IMMEDIATELY
+        sendNewRound(roomID);
     });
 
+    // 2. JOIN GAME
     socket.on('join_game', (roomID) => {
         const room = io.sockets.adapter.rooms.get(roomID);
-        if (room && room.size === 1) {
+        
+        // Check if room exists
+        if (roomData[roomID]) {
             socket.join(roomID);
-            myRoom = roomID;
             roomData[roomID].scores[socket.id] = 0;
+            
+            // Send the current problem to the new joiner immediately
             sendNewRound(roomID);
+        } else {
+            console.log("Join failed: Room does not exist");
         }
     });
 
-   socket.on('i_solved_it', () => {
-    if (!roomData[myRoom]) return;
+    // 3. I SOLVED IT
+    socket.on('i_solved_it', (roomID) => {
+        if (!roomData[roomID]) return;
 
-    roomData[myRoom].scores[socket.id] += 1;
-    roomData[myRoom].history.push(socket.id);
-    roomData[myRoom].round += 1;
+        // Increment Score
+        roomData[roomID].scores[socket.id] += 10;
+        roomData[roomID].round++;
 
-    if (roomData[myRoom].round < 5) {
-        sendNewRound(myRoom);
-    } else {
-        // Add a 500ms delay so the final "Correct" feedback 
-        // has time to show up before the Results screen hides it.
-        const finalData = {
-            scores: roomData[myRoom].scores,
-            history: roomData[myRoom].history
-        };
-        
-        setTimeout(() => {
-            io.to(myRoom).emit('final_results', finalData);
-            delete roomData[myRoom];
-        }, 500); 
-    }
-});
+        // Update Leaderboard
+        io.to(roomID).emit('update_scores', roomData[roomID].scores);
 
-    function sendNewRound(roomID) {
-        const randomTemplate = templates[Math.floor(Math.random() * templates.length)];
-        const problem = generateFromTemplate(randomTemplate);
-        io.to(roomID).emit('start_round', {
-            problem: problem,
-            scores: roomData[roomID].scores,
-            roundNumber: roomData[roomID].round + 1
-        });
-    }
+        // Trigger Next Round
+        sendNewRound(roomID);
+    });
+
+    socket.on('disconnect', () => {
+        console.log('User disconnected:', socket.id);
+    });
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`Server live on port ${PORT}`));
-
-
-
-
-
-
-
+server.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+});
