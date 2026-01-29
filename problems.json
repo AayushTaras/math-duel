@@ -1,0 +1,7 @@
+[
+  { "q": "\\int NUM1x^{NUM2} dx", "a_formula": "power_rule" },
+  { "q": "\\int \\sin(NUM1x) dx", "a_formula": "sin_rule" },
+  { "q": "\\int \\cos(NUM1x) dx", "a_formula": "cos_rule" },
+  { "q": "\\int e^{NUM1x} dx", "a_formula": "exp_rule" },
+  { "q": "\\int \\frac{NUM1}{x} dx", "a_formula": "ln_rule" }
+]
