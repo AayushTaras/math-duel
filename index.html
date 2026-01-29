@@ -65,52 +65,67 @@
         });
 
 <script>
-    function checkAnswer() {
-        const inputField = document.getElementById('answerField');
-        const feedback = document.getElementById('feedback');
-        let userAns = inputField.value.trim().toLowerCase();
-        let correct = currentCorrectAnswer.trim().toLowerCase();
+function checkAnswer() {
+    const inputField = document.getElementById('answerField');
+    const feedback = document.getElementById('feedback');
+    let userAns = inputField.value.trim().toLowerCase();
+    let correct = currentCorrectAnswer.trim().toLowerCase();
 
-        // 1. GATEKEEPER
-        if (!userAns) {
-            feedback.innerText = "Type something first!";
-            feedback.style.color = "orange";
-            return;
-        }
-
-        // 2. NORMALIZATION (Minus signs and Exp)
-        userAns = userAns.replace(/[\u2012\u2013\u2014\u2212]/g, '-').replace(/e\^/g, 'exp');
-        correct = correct.replace(/[\u2012\u2013\u2014\u2212]/g, '-');
-
-        // 3. FUZZY TEXT MATCH
-        // Strips spaces, stars, and parentheses to see if the "core" text matches
-        const cleanUser = userAns.replace(/[\s\*\(\)]/g, '');
-        const cleanCorrect = correct.replace(/[\s\*\(\)]/g, '');
-        
-        if (cleanUser === cleanCorrect) {
-            return solveSuccess();
-        }
-
-        // 4. SMART MATH EVALUATION
-        try {
-            // Test at two points to ensure the functions are truly identical
-            const points = [1.5, 2.5]; 
-            const isMatch = points.every(val => {
-                const scope = { x: val };
-                const u = math.evaluate(userAns, scope);
-                const c = math.evaluate(correct, scope);
-                return Math.abs(u - c) < 0.01; // Tight tolerance for accuracy
-            });
-
-            if (isMatch) return solveSuccess();
-        } catch (e) {
-            console.log("Math check error:", e);
-        }
-
-        // 5. FAILURE FEEDBACK
-        feedback.innerText = "Wrong Answer";
-        feedback.style.color = "#ff4e4e";
+    // 1. GATEKEEPER: Prevent points for empty clicks
+    if (!userAns) {
+        feedback.innerText = "Type something first!";
+        feedback.style.color = "orange";
+        return;
     }
+
+    // 2. NORMALIZATION: Fix mobile dashes and standardize notation
+    // Converts long dashes to standard hyphens
+    userAns = userAns.replace(/[\u2012\u2013\u2014\u2212]/g, '-');
+    correct = correct.replace(/[\u2012\u2013\u2014\u2212]/g, '-');
+
+    // Bridge the gap between user 'ln' and server 'log'
+    userAns = userAns.replace(/ln/g, 'log');
+    // Bridge the gap between user 'e^' and server 'exp'
+    userAns = userAns.replace(/e\^/g, 'exp');
+
+    // 3. FUZZY TEXT MATCH: Ignore formatting "noise"
+    // Strips spaces, stars, and parentheses for a strict symbol check
+    const cleanUser = userAns.replace(/[\s\*\(\)]/g, '');
+    const cleanCorrect = correct.replace(/[\s\*\(\)]/g, '');
+    
+    if (cleanUser === cleanCorrect) {
+        return solveSuccess();
+    }
+
+    // 4. SMART MATH EVALUATION: Handles fractions vs decimals
+    try {
+        // Test at two points to ensure the functions match across a curve
+        const points = [1.5, 2.5]; 
+        const isMatch = points.every(val => {
+            const scope = { x: val };
+            const u = math.evaluate(userAns, scope);
+            const c = math.evaluate(correct, scope);
+            // 0.02 tolerance allows for minor rounding differences
+            return Math.abs(u - c) < 0.02; 
+        });
+
+        if (isMatch) return solveSuccess();
+    } catch (e) {
+        console.log("Math check bypassed or formula incomplete");
+    }
+
+    // 5. FAILURE FEEDBACK
+    feedback.innerText = "Wrong Answer";
+    feedback.style.color = "#ff4e4e";
+}
+
+function solveSuccess() {
+    const feedback = document.getElementById('feedback');
+    feedback.innerText = "✓ Correct!";
+    feedback.style.color = "#00f097";
+    document.getElementById('submitBtn').disabled = true;
+    socket.emit('i_solved_it');
+}
 
     function solveSuccess() {
         const feedback = document.getElementById('feedback');
@@ -153,6 +168,7 @@ function solveSuccess() {
     </script>
 </body>
 </html>
+
 
 
 
