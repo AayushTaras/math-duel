@@ -64,51 +64,61 @@
             katex.render(data.problem.q, document.getElementById('math-problem'));
         });
 
-function checkAnswer() {
-    const inputField = document.getElementById('answerField');
-    const feedback = document.getElementById('feedback');
-    let userAns = inputField.value.trim();
-    
-    // 1. GATEKEEPER: Prevent empty submissions
-    if (!userAns) {
-        feedback.innerText = "Type something first!";
-        feedback.style.color = "orange";
-        return;
-    }
+<script>
+    function checkAnswer() {
+        const inputField = document.getElementById('answerField');
+        const feedback = document.getElementById('feedback');
+        let userAns = inputField.value.trim().toLowerCase();
+        let correct = currentCorrectAnswer.trim().toLowerCase();
 
-    // 2. NORMALIZATION: Fix minus signs and lowercase everything
-    userAns = userAns.replace(/[\u2012\u2013\u2014\u2212]/g, '-').toLowerCase();
-    let correct = currentCorrectAnswer.replace(/[\u2012\u2013\u2014\u2212]/g, '-').trim().toLowerCase();
+        // 1. GATEKEEPER
+        if (!userAns) {
+            feedback.innerText = "Type something first!";
+            feedback.style.color = "orange";
+            return;
+        }
 
-    // Convert e^ to exp for Math.js consistency
-    userAns = userAns.replace(/e\^/g, 'exp');
+        // 2. NORMALIZATION (Minus signs and Exp)
+        userAns = userAns.replace(/[\u2012\u2013\u2014\u2212]/g, '-').replace(/e\^/g, 'exp');
+        correct = correct.replace(/[\u2012\u2013\u2014\u2212]/g, '-');
 
-    // 3. TEXT MATCH: Standardize spaces/stars for a quick check
-    const cleanUser = userAns.replace(/[\s\*\(\)]/g, '');
-    const cleanCorrect = correct.replace(/[\s\*\(\)]/g, '');
-    
-    if (cleanUser === cleanCorrect) {
-        return solveSuccess();
-    }
-
-    // 4. SMART MATH MATCH: This handles (7/6) vs 1.17
-    try {
-        const scope = { x: 2 }; // Test value
-        const userValue = math.evaluate(userAns, scope);
-        const correctValue = math.evaluate(correct, scope);
-
-        // Tolerance of 0.05 handles rounding differences
-        if (Math.abs(userValue - correctValue) < 0.05) {
+        // 3. FUZZY TEXT MATCH
+        // Strips spaces, stars, and parentheses to see if the "core" text matches
+        const cleanUser = userAns.replace(/[\s\*\(\)]/g, '');
+        const cleanCorrect = correct.replace(/[\s\*\(\)]/g, '');
+        
+        if (cleanUser === cleanCorrect) {
             return solveSuccess();
         }
-    } catch (e) {
-        console.error("Math evaluation failed:", e);
+
+        // 4. SMART MATH EVALUATION
+        try {
+            // Test at two points to ensure the functions are truly identical
+            const points = [1.5, 2.5]; 
+            const isMatch = points.every(val => {
+                const scope = { x: val };
+                const u = math.evaluate(userAns, scope);
+                const c = math.evaluate(correct, scope);
+                return Math.abs(u - c) < 0.01; // Tight tolerance for accuracy
+            });
+
+            if (isMatch) return solveSuccess();
+        } catch (e) {
+            console.log("Math check error:", e);
+        }
+
+        // 5. FAILURE FEEDBACK
+        feedback.innerText = "Wrong Answer";
+        feedback.style.color = "#ff4e4e";
     }
 
-    // 5. FEEDBACK: If everything above fails
-    feedback.innerText = "Wrong Answer";
-    feedback.style.color = "var(--error)";
-}
+    function solveSuccess() {
+        const feedback = document.getElementById('feedback');
+        feedback.innerText = "✓ Correct!";
+        feedback.style.color = "#00f097";
+        document.getElementById('submitBtn').disabled = true;
+        socket.emit('i_solved_it');
+    }
 
 function solveSuccess() {
     const feedback = document.getElementById('feedback');
@@ -143,6 +153,7 @@ function solveSuccess() {
     </script>
 </body>
 </html>
+
 
 
 
