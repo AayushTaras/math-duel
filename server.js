@@ -25,22 +25,31 @@ try {
 }
 
 const roomData = {}; 
-
 function generateFromTemplate(template) {
     let q = template.q;
     let n1 = Math.floor(Math.random() * 8) + 2; 
     let n2 = Math.floor(Math.random() * 4) + 2; 
     
-    q = q.replace("NUM1", n1).replace("NUM2", n2);
-    let a = template.a || ""; 
+    q = q.replace(/NUM1/g, n1).replace(/NUM2/g, n2);
+    
+    let a = ""; 
+    if (template.a) {
+        a = template.a.replace(/NUM1/g, n1).replace(/NUM2/g, n2); 
+    }
 
-    // Logic for dynamic formulas
     if(template.a_formula === "power_rule") {
         let power = n2 + 1;
         let coeff = (n1 / power).toFixed(2);
         if (coeff.endsWith(".00")) coeff = Math.floor(n1 / power);
-        a = `${coeff} * x^${power}`;
+        a = `${coeff}*x^${power}`;
+    } else if (template.a_formula === "sin_rule") {
+        let coeff = (1 / n1).toFixed(2);
+        // Ensure standard minus sign here
+        a = `-${coeff}*cos(${n1}*x)`;
     }
+
+    // Clean up any weird dashes to standard minus signs
+    a = a.replace(/[\u2012\u2013\u2014\u2212]/g, '-');
 
     return { q: q, a: a };
 }
@@ -97,3 +106,4 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`Server live on port ${PORT}`));
+
