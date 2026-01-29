@@ -53,32 +53,28 @@ function generateFromTemplate(template) {
     }
     break;
             
-        case "ln_rule":
-            // For ∫ (n1 / x) dx = n1 * ln(x)
-            // We use log(x) for Math.js compatibility
-            a = `${n1}*log(x)`;
-            break;
-
-        case "exp_rule":
-    // For ∫ e^(n1*x) dx = (1/n1) * e^(n1*x)
-    let rawCoeff = 1 / n1;
-    let expCoeff = rawCoeff.toFixed(3); // More precision helps the math check
-    
-    // We use e^(...) instead of exp(...) for better player familiarity
-    a = `${expCoeff}*e^(${n1}*x)`;
+    case "ln_rule":
+    // For ∫ (n1 / x) dx = n1 * ln(x)
+    // We keep n1 as a whole number. 
+    // We use 'log' for the internal math check, but the player can type 'ln'
+    a = `${n1}*log(x)`;
     break;
             
-        case "sin_rule":
-            let sCoeff = (1 / n1).toFixed(2);
-            a = `-${sCoeff}*cos(${n1}*x)`;
-            break;
-            
-         case "cos_rule":
-            // NEW: ∫ cos(n1*x) dx = (1/n1) * sin(n1*x)
-            let cCoeff = (1 / n1).toFixed(2);
-            if (cCoeff.endsWith(".00")) cCoeff = "1";
-            a = `${cCoeff}*sin(${n1}*x)`;
-            break;
+    case "exp_rule":
+    // ∫ e^(n1*x) dx = (1/n1) * e^(n1*x)
+    a = `(1/${n1})*exp(${n1}*x)`;
+    break;
+
+case "sin_rule":
+    // ∫ sin(n1*x) dx = -(1/n1) * cos(n1*x)
+    a = `-(1/${n1})*cos(${n1}*x)`;
+    break;
+
+case "cos_rule":
+    // ∫ cos(n1*x) dx = (1/n1) * sin(n1*x)
+    a = `(1/${n1})*sin(${n1}*x)`;
+    break;
+
     }
 
     // Final clean-up: standardized minus signs
@@ -145,6 +141,7 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`Server live on port ${PORT}`));
+
 
 
 
