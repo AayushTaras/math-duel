@@ -16,13 +16,13 @@ const roomData = {};
 
 // PROBLEM TEMPLATES
 const problemTemplates = [
-    { q: "\\int x^{NUM1} dx", type: "power_rule" },
-    { q: "\\int NUM1 x^{NUM2} dx", type: "power_rule_coeff" },
-    { q: "\\int \\frac{NUM1}{x} dx", type: "ln_rule" },
-    { q: "\\int e^{NUM1x} dx", type: "exp_rule" },
-    { q: "\\int \\sin(NUM1x) dx", type: "sin_rule" },
-    { q: "\\int \\cos(NUM1x) dx", type: "cos_rule" },
-    { q: "\\int_{0}^{1} NUM1 x dx", type: "definite_simple" } 
+    { q: "\\\int x^{NUM1} dx", type: "power_rule" },
+    { q: "\\\int NUM1 x^{NUM2} dx", type: "power_rule_coeff" },
+    { q: "\\\int \\\frac{NUM1}{x} dx", type: "ln_rule" },
+    { q: "\\\int e^{NUM1x} dx", type: "exp_rule" },
+    { q: "\\\int \\\sin(NUM1x) dx", type: "sin_rule" },
+    { q: "\\\int \\\cos(NUM1x) dx", type: "cos_rule" },
+    { q: "\\\int_{0}^{1} NUM1 x dx", type: "definite_simple" } 
 ];
 
 function generateProblem() {
@@ -156,3 +156,4 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });
+
