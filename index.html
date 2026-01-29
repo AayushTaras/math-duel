@@ -77,6 +77,24 @@ socket.on('game_created', (roomID) => {
     document.getElementById('game-screen').style.display = 'block';
     
     console.log("Room created and joined:", roomID);
+
+    function createMatch() {
+    // Just tell the server to start the process
+    socket.emit('create_game');
+}
+    function joinMatch() {
+    const code = document.getElementById('roomInput').value.trim().toUpperCase();
+    if (code) {
+        myRoom = code;
+        socket.emit('join_game', code);
+        
+        // Switch UI
+        document.getElementById('start-screen').style.display = 'none';
+        document.getElementById('game-screen').style.display = 'block';
+    } else {
+        alert("Enter a code first!");
+    }
+}
 });
        
     function createMatch() {
@@ -210,6 +228,7 @@ function solveSuccess() {
     </script>
 </body>
 </html>
+
 
 
 
