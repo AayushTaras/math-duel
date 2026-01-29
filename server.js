@@ -98,22 +98,29 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('i_solved_it', () => {
-        if (!roomData[myRoom]) return;
-        roomData[myRoom].scores[socket.id] += 1;
-        roomData[myRoom].history.push(socket.id);
-        roomData[myRoom].round += 1;
+   socket.on('i_solved_it', () => {
+    if (!roomData[myRoom]) return;
 
-        if (roomData[myRoom].round < 5) {
-            sendNewRound(myRoom);
-        } else {
-            io.to(myRoom).emit('final_results', {
-                scores: roomData[myRoom].scores,
-                history: roomData[myRoom].history
-            });
+    roomData[myRoom].scores[socket.id] += 1;
+    roomData[myRoom].history.push(socket.id);
+    roomData[myRoom].round += 1;
+
+    if (roomData[myRoom].round < 5) {
+        sendNewRound(myRoom);
+    } else {
+        // Add a 500ms delay so the final "Correct" feedback 
+        // has time to show up before the Results screen hides it.
+        const finalData = {
+            scores: roomData[myRoom].scores,
+            history: roomData[myRoom].history
+        };
+        
+        setTimeout(() => {
+            io.to(myRoom).emit('final_results', finalData);
             delete roomData[myRoom];
-        }
-    });
+        }, 500); 
+    }
+});
 
     function sendNewRound(roomID) {
         const randomTemplate = templates[Math.floor(Math.random() * templates.length)];
@@ -128,5 +135,6 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`Server live on port ${PORT}`));
+
 
 
