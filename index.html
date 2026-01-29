@@ -64,24 +64,24 @@
             katex.render(data.problem.q, document.getElementById('math-problem'));
         });
        
-        function createMatch() {
-    // 1. Get the room name the user typed
-    const roomName = document.getElementById('roomInput').value.trim();
+    function createMatch() {
+    const roomInput = document.getElementById('roomInput');
+    const roomName = roomInput.value.trim();
 
-    // 2. Validate it
     if (!roomName) {
-        alert("Please enter a Room Name first!");
+        alert("Please enter a room name!");
         return;
     }
 
-    // 3. Set the global variable so we know where we are
-    myRoom = roomName;
+    myRoom = roomName; // Make sure this global variable is defined at the top of your script
 
-    // 4. Tell the server we are joining/creating this room
-    // Note: We use 'join_room' because our server treats them the same
+    // Log this to your browser console (F12) so you can see if it's firing
+    console.log("Attempting to join room:", roomName);
+
+    // Tell the server to put us in a room
     socket.emit('join_room', roomName);
 
-    // 5. VISUAL CHANGE: Hide Start Screen, Show Game Screen
+    // Switch the UI
     document.getElementById('start-screen').style.display = 'none';
     document.getElementById('game-screen').style.display = 'block';
 }
@@ -195,6 +195,7 @@ function solveSuccess() {
     </script>
 </body>
 </html>
+
 
 
 
