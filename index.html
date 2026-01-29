@@ -24,7 +24,7 @@
         <h1>MATH DUEL</h1>
         
         <div id="setup">
-            <button onclick="socket.emit('create_game')">Create Match</button>
+            <button onclick="createMatch()">Create Match</button>
             <p style="color: #666;">OR</p>
             <input type="text" id="codeField" placeholder="Enter Code">
             <button onclick="socket.emit('join_game', document.getElementById('codeField').value.toUpperCase())">Join Duel</button>
@@ -63,6 +63,28 @@
             
             katex.render(data.problem.q, document.getElementById('math-problem'));
         });
+       
+        function createMatch() {
+    // 1. Get the room name the user typed
+    const roomName = document.getElementById('roomInput').value.trim();
+
+    // 2. Validate it
+    if (!roomName) {
+        alert("Please enter a Room Name first!");
+        return;
+    }
+
+    // 3. Set the global variable so we know where we are
+    myRoom = roomName;
+
+    // 4. Tell the server we are joining/creating this room
+    // Note: We use 'join_room' because our server treats them the same
+    socket.emit('join_room', roomName);
+
+    // 5. VISUAL CHANGE: Hide Start Screen, Show Game Screen
+    document.getElementById('start-screen').style.display = 'none';
+    document.getElementById('game-screen').style.display = 'block';
+}
         
 function checkAnswer() {
     const inputField = document.getElementById('answerField');
@@ -173,6 +195,7 @@ function solveSuccess() {
     </script>
 </body>
 </html>
+
 
 
 
