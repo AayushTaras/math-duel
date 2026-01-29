@@ -2,23 +2,28 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const fs = require('fs');
+const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-app.use(express.static(__dirname));
+// --- FILE SERVING LOGIC ---
+// This tells Express to serve your index.html and other files from the root folder
+app.use(express.static(path.join(__dirname, '/')));
+
+// This is the "Home Route" - it forces the browser to load index.html immediately
 app.get('/', (req, res) => {
-    res.sendFile(__dirname + '/index.html');
+    res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// Load templates from your problems.json
+// --- PROBLEM GENERATION LOGIC ---
 let templates = [];
 try {
     templates = JSON.parse(fs.readFileSync('problems.json', 'utf8'));
 } catch (err) {
-    console.error("Error reading problems.json!");
-    templates = [{ "q": "\\int NUM1x^{NUM2} dx", "a_formula": "power_rule" }];
+    console.error("Error reading problems.json! Make sure the file exists in the root folder.");
+    templates = [{ "q": "\\int x^2 dx", "a": "1/3 * x^3" }]; // Fallback
 }
 
 const roomData = {}; 
@@ -30,42 +35,21 @@ function generateFromTemplate(template) {
     
     q = q.replace("NUM1", n1).replace("NUM2", n2);
 
-    let a = "";
-    // IMPORTANT: We use * and ^ so Math.js understands the answer perfectly
-    switch(template.a_formula) {
-       case "power_rule": 
-            let power = n2 + 1;
-            let coeff = (n1 / power).toFixed(2);
-            if (coeff.endsWith(".00")) coeff = Math.floor(n1 / power);
-            a = `${coeff} * x^${power}`; 
-            break;
+    // Using your "old code" style since you mentioned it works better for you
+    // We just ensure standard math symbols like * and ^ are used
+    let a = template.a ? template.a : ""; 
 
-        case "sin_rule":
-            let sCoeff = (1 / n1).toFixed(2);
-            a = `-${sCoeff} * cos(${n1} * x)`;
-            break;
-
-        case "cos_rule":
-            let cCoeff = (1 / n1).toFixed(2);
-            a = `${cCoeff} * sin(${n1} * x)`;
-            break;
-
-        case "exp_rule":
-            let eCoeff = (1 / n1).toFixed(2);
-            a = `${eCoeff} * e^(${n1} * x)`;
-            break;
-
-        case "ln_rule":
-            a = `${n1} * log(x)`; // Math.js uses 'log' for natural log (ln)
-            break;
-
-        default:
-            a = template.a; // Use the static answer if no formula exists
+    // If you use a_formula in your JSON, the logic stays here:
+    if(template.a_formula === "power_rule") {
+        let power = n2 + 1;
+        let coeff = (n1 / power).toFixed(2);
+        a = `${coeff} * x^${power}`;
     }
 
     return { q: q, a: a };
 }
 
+// --- MULTIPLAYER LOGIC ---
 io.on('connection', (socket) => {
     let myRoom = "";
 
@@ -90,6 +74,7 @@ io.on('connection', (socket) => {
 
     socket.on('i_solved_it', () => {
         if (!roomData[myRoom]) return;
+
         roomData[myRoom].scores[socket.id] += 1;
         roomData[myRoom].history.push(socket.id);
         roomData[myRoom].round += 1;
@@ -116,8 +101,9 @@ io.on('connection', (socket) => {
     }
 });
 
+// --- START THE SERVER ---
+// Using process.env.PORT for Render and 3000 for local testing
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
-
+    console.log(`Server live on port ${PORT}`);
 });
