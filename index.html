@@ -26,7 +26,7 @@
         <div id="setup">
             <button onclick="createMatch()">Create Match</button>
             <p style="color: #666;">OR</p>
-            <input type="text" id="codeField" placeholder="Enter Code">
+            <input type="text" id="roomInput" placeholder="Enter Room Name">
             <button onclick="socket.emit('join_game', document.getElementById('codeField').value.toUpperCase())">Join Duel</button>
             <h3 id="status" style="margin-top: 20px; color: var(--accent);"></h3>
         </div>
@@ -195,6 +195,7 @@ function solveSuccess() {
     </script>
 </body>
 </html>
+
 
 
 
