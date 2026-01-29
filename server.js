@@ -53,11 +53,14 @@ function generateFromTemplate(template) {
             break;
 
         case "exp_rule":
-            // For ∫ e^(n1*x) dx = (1/n1) * e^(n1*x)
-            let expCoeff = (1 / n1).toFixed(2);
-            a = `${expCoeff}*exp(${n1}*x)`;
-            break;
-
+    // For ∫ e^(n1*x) dx = (1/n1) * e^(n1*x)
+    let rawCoeff = 1 / n1;
+    let expCoeff = rawCoeff.toFixed(3); // More precision helps the math check
+    
+    // We use e^(...) instead of exp(...) for better player familiarity
+    a = `${expCoeff}*e^(${n1}*x)`;
+    break;
+            
         case "sin_rule":
             let sCoeff = (1 / n1).toFixed(2);
             a = `-${sCoeff}*cos(${n1}*x)`;
@@ -135,6 +138,7 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`Server live on port ${PORT}`));
+
 
 
 
