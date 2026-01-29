@@ -75,6 +75,28 @@ case "cos_rule":
     a = `(1/${n1})*sin(${n1}*x)`;
     break;
 
+            case "ln_coeff_rule":
+    // ∫ (n1 / (n2*x)) dx = (n1/n2) * ln(x)
+    a = `(${n1}/${n2})*log(x)`;
+    break;
+
+case "definite_power":
+    // ∫ from 0 to 1 of (n1 * x^n2) dx = n1 / (n2 + 1)
+    let newP = n2 + 1;
+    a = `${(n1 / newP).toFixed(2)}`; 
+    break;
+
+case "arctan_rule":
+    // ∫ 1 / (x^2 + n1^2) dx = (1/n1) * arctan(x/n1)
+    // Note: n1 is passed as the squared value usually, or just a constant
+    a = `(1/${n1})*atan(x/${n1})`;
+    break;
+
+case "const_rule":
+    // ∫ n1 dx = n1*x
+    a = `${n1}*x`;
+    break;
+
     }
 
     // Final clean-up: standardized minus signs
@@ -141,6 +163,7 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`Server live on port ${PORT}`));
+
 
 
 
